@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dry Me!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .timer-display {
+            text-align: center;
+            font-size: 48px;
+            font-weight: 200;
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .time-inputs {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .time-input {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .time-input label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .time-input input {
+            width: 60px;
+            height: 50px;
+            text-align: center;
+            font-size: 18px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            outline: none;
+        }
+
+        .time-input input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #FF9800;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .status.active {
+            color: #4CAF50;
+        }
+
+        .status.alerting {
+            color: #ff4444;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 68, 68, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: flashAlert 0.5s infinite alternate;
+        }
+
+        .alert-content {
+            text-align: center;
+            background: white;
+            color: #333;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .alert-content h2 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            color: #ff4444;
+        }
+
+        .alert-content p {
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+
+        .alert-content button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        @keyframes flashAlert {
+            from { background: rgba(255, 68, 68, 0.9); }
+            to { background: rgba(255, 68, 68, 0.7); }
+        }
+
+        .presets {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .preset-btn {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .preset-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .settings {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+        }
+
+        .settings h3 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 300;
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+
+        .setting-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .setting-group select {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .setting-group select option {
+            background: #333;
+            color: white;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #4CAF50;
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .test-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .test-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧺 Dry Me!</h1>
+            <p>Beat the Mold</p>
+        </div>
+
+        <div class="timer-display" id="timerDisplay">
+            Set Timer
+        </div>
+
+        <div class="status" id="status">
+            Ready to start
+        </div>
+
+        <div class="controls">
+            <div class="presets">
+                <button class="preset-btn" onclick="setPreset(30)">30 min</button>
+                <button class="preset-btn" onclick="setPreset(45)">45 min</button>
+                <button class="preset-btn" onclick="setPreset(60)">1 hour</button>
+                <button class="preset-btn" onclick="setPreset(90)">1.5 hours</button>
+            </div>
+
+            <div class="time-inputs">
+                <div class="time-input">
+                    <label>Hours</label>
+                    <input type="number" id="hours" min="0" max="23" value="0" placeholder="0">
+                </div>
+                <div class="time-input">
+                    <label>Minutes</label>
+                    <input type="number" id="minutes" min="0" max="59" value="30" placeholder="30">
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button class="btn btn-primary" id="startBtn" onclick="startTimer()">Start Timer</button>
+                <button class="btn btn-secondary" id="pauseBtn" onclick="pauseTimer()" disabled>Pause</button>
+                <button class="btn btn-danger" id="stopBtn" onclick="stopTimer()" disabled>Stop</button>
+            </div>
+        </div>
+
+        <div class="settings">
+            <h3>⚙️ Alert Settings</h3>
+            
+            <div class="setting-group">
+                <label>Alert Type:</label>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="enableVibration" checked>
+                        <label for="enableVibration">Vibration</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="enableSound" checked>
+                        <label for="enableSound">Sound</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="enableBackground" checked>
+                        <label for="enableBackground">Run in Background</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label for="alertSound">Alert Sound:</label>
+                <select id="alertSound">
+                    <option value="beep">Beep (Default)</option>
+                    <option value="chime">Chime</option>
+                    <option value="bell">Bell</option>
+                    <option value="alarm">Alarm</option>
+                    <option value="notification">Notification Tone</option>
+                    <option value="custom">Upload Custom Sound</option>
+                </select>
+                <input type="file" id="customSound" accept="audio/*" style="display: none; margin-top: 10px;">
+                <button class="test-btn" onclick="testAlert()">Test Alert</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert-overlay" id="alertOverlay">
+        <div class="alert-content">
+            <h2>🚨 LAUNDRY READY!</h2>
+            <p>Time to move your laundry from washer to dryer!</p>
+            <button onclick="dismissAlert()">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        let timer = null;
+        let totalSeconds = 0;
+        let remainingSeconds = 0;
+        let isPaused = false;
+        let isAlerting = false;
+        let alertInterval = null;
+        let alertAudio = null;
+        let wakeLock = null;
+        let customAudioBuffer = null;
+        let audioContext = null;
+        let serviceWorkerRegistered = false;
+
+        // Initialize audio context
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioContext;
+        }
+
+        // Create different sound types
+        function createSound(type, duration = 0.5) {
+            const ctx = initAudioContext();
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            switch(type) {
+                case 'beep':
+                    oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+                    oscillator.type = 'sine';
+                    break;
+                case 'chime':
+                    oscillator.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+                    oscillator.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
+                    oscillator.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2); // G5
+                    oscillator.type = 'sine';
+                    break;
+                case 'bell':
+                    oscillator.frequency.setValueAtTime(1000, ctx.currentTime);
+                    oscillator.type = 'triangle';
+                    break;
+                case 'alarm':
+                    oscillator.frequency.setValueAtTime(440, ctx.currentTime);
+                    oscillator.frequency.setValueAtTime(880, ctx.currentTime + 0.25);
+                    oscillator.type = 'square';
+                    break;
+                case 'notification':
+                    oscillator.frequency.setValueAtTime(600, ctx.currentTime);
+                    oscillator.frequency.setValueAtTime(800, ctx.currentTime + 0.1);
+                    oscillator.type = 'sine';
+                    break;
+            }
+            
+            gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+            
+            oscillator.start();
+            oscillator.stop(ctx.currentTime + duration);
+        }
+
+        // Play custom audio file
+        function playCustomAudio() {
+            if (customAudioBuffer && audioContext) {
+                const source = audioContext.createBufferSource();
+                source.buffer = customAudioBuffer;
+                source.connect(audioContext.destination);
+                source.start();
+            }
+        }
+
+        function playAlert() {
+            const enableSound = document.getElementById('enableSound').checked;
+            const enableVibration = document.getElementById('enableVibration').checked;
+            const soundType = document.getElementById('alertSound').value;
+            
+            try {
+                if (enableSound) {
+                    if (soundType === 'custom' && customAudioBuffer) {
+                        playCustomAudio();
+                    } else {
+                        createSound(soundType);
+                    }
+                }
+                
+                if (enableVibration && navigator.vibrate) {
+                    navigator.vibrate([500, 200, 500, 200, 500]);
+                }
+            } catch (error) {
+                console.log('Alert playback error:', error);
+            }
+        }
+
+        function testAlert() {
+            playAlert();
+        }
+
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+
+        function showNotification() {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('🧺 Dry Me!', {
+                    body: 'Time to move your laundry from washer to dryer!',
+                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="0.9em" font-size="90">🧺</text></svg>',
+                    tag: 'laundry-reminder',
+                    requireInteraction: true
+                });
+            }
+        }
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator && document.getElementById('enableBackground').checked) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (error) {
+                console.log('Wake lock not supported');
+            }
+        }
+
+        // Register service worker for background operation
+        async function registerServiceWorker() {
+            if ('serviceWorker' in navigator && document.getElementById('enableBackground').checked) {
+                try {
+                    // Create service worker code as a blob
+                    const swCode = `
+                        self.addEventListener('message', function(event) {
+                            if (event.data.action === 'START_TIMER') {
+                                const duration = event.data.duration;
+                                setTimeout(() => {
+                                    self.registration.showNotification('🧺 Dry Me!', {
+                                        body: 'Time to move your laundry from washer to dryer!',
+                                        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="0.9em" font-size="90">🧺</text></svg>',
+                                        tag: 'laundry-reminder',
+                                        requireInteraction: true,
+                                        actions: [
+                                            { action: 'dismiss', title: 'Got it!' }
+                                        ]
+                                    });
+                                }, duration * 1000);
+                            }
+                        });
+
+                        self.addEventListener('notificationclick', function(event) {
+                            event.notification.close();
+                            if (event.action === 'dismiss') {
+                                // Notification dismissed
+                            }
+                            // Focus the app window
+                            event.waitUntil(
+                                clients.matchAll().then(function(clientList) {
+                                    if (clientList.length > 0) {
+                                        return clientList[0].focus();
+                                    }
+                                    return clients.openWindow('/');
+                                })
+                            );
+                        });
+                    `;
+                    
+                    const blob = new Blob([swCode], { type: 'application/javascript' });
+                    const swUrl = URL.createObjectURL(blob);
+                    
+                    const registration = await navigator.serviceWorker.register(swUrl);
+                    serviceWorkerRegistered = true;
+                    console.log('Service Worker registered successfully');
+                    return registration;
+                } catch (error) {
+                    console.log('Service Worker registration failed:', error);
+                }
+            }
+            return null;
+        }
+
+        // Send timer info to service worker
+        function notifyServiceWorker(duration) {
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller && document.getElementById('enableBackground').checked) {
+                navigator.serviceWorker.controller.postMessage({
+                    action: 'START_TIMER',
+                    duration: duration
+                });
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+        }
+
+        function setPreset(minutes) {
+            document.getElementById('hours').value = Math.floor(minutes / 60);
+            document.getElementById('minutes').value = minutes % 60;
+        }
+
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                return `${minutes}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+
+        function updateDisplay() {
+            const display = document.getElementById('timerDisplay');
+            const status = document.getElementById('status');
+            
+            if (remainingSeconds > 0) {
+                display.textContent = formatTime(remainingSeconds);
+                if (isPaused) {
+                    status.textContent = 'Paused';
+                    status.className = 'status';
+                } else {
+                    status.textContent = 'Timer Running...';
+                    status.className = 'status active';
+                }
+            } else if (isAlerting) {
+                display.textContent = '🚨 TIME UP!';
+                status.textContent = 'LAUNDRY READY!';
+                status.className = 'status alerting';
+            } else {
+                display.textContent = 'Set Timer';
+                status.textContent = 'Ready to start';
+                status.className = 'status';
+            }
+        }
+
+        function startTimer() {
+            const hours = parseInt(document.getElementById('hours').value) || 0;
+            const minutes = parseInt(document.getElementById('minutes').value) || 0;
+            
+            if (hours === 0 && minutes === 0) {
+                alert('Please set a time greater than 0!');
+                return;
+            }
+
+            // Request permissions and setup background operation
+            requestNotificationPermission();
+            if (document.getElementById('enableBackground').checked) {
+                requestWakeLock();
+                registerServiceWorker().then(() => {
+                    notifyServiceWorker(totalSeconds);
+                });
+            }
+
+            totalSeconds = (hours * 3600) + (minutes * 60);
+            remainingSeconds = totalSeconds;
+            isPaused = false;
+            
+            timer = setInterval(() => {
+                if (!isPaused) {
+                    remainingSeconds--;
+                    updateDisplay();
+                    
+                    if (remainingSeconds <= 0) {
+                        clearInterval(timer);
+                        startAlert();
+                    }
+                }
+            }, 1000);
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = false;
+            
+            updateDisplay();
+        }
+
+        function pauseTimer() {
+            isPaused = !isPaused;
+            const pauseBtn = document.getElementById('pauseBtn');
+            pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
+            updateDisplay();
+        }
+
+        function stopTimer() {
+            clearInterval(timer);
+            clearInterval(alertInterval);
+            timer = null;
+            remainingSeconds = 0;
+            isPaused = false;
+            isAlerting = false;
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('pauseBtn').textContent = 'Pause';
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('alertOverlay').style.display = 'none';
+            
+            releaseWakeLock();
+            updateDisplay();
+        }
+
+        function startAlert() {
+            isAlerting = true;
+            document.getElementById('alertOverlay').style.display = 'flex';
+            
+            // Show notification
+            showNotification();
+            
+            // Start continuous alert
+            alertInterval = setInterval(() => {
+                playAlert();
+            }, 2000);
+            
+            updateDisplay();
+        }
+
+        function dismissAlert() {
+            clearInterval(alertInterval);
+            isAlerting = false;
+            document.getElementById('alertOverlay').style.display = 'none';
+            stopTimer();
+        }
+
+        // Initialize
+        updateDisplay();
+        
+        // Handle custom sound upload
+        document.getElementById('alertSound').addEventListener('change', function() {
+            const customSoundInput = document.getElementById('customSound');
+            if (this.value === 'custom') {
+                customSoundInput.style.display = 'block';
+            } else {
+                customSoundInput.style.display = 'none';
+            }
+        });
+
+        document.getElementById('customSound').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const ctx = initAudioContext();
+                    ctx.decodeAudioData(e.target.result)
+                        .then(buffer => {
+                            customAudioBuffer = buffer;
+                        })
+                        .catch(error => {
+                            console.error('Error decoding audio file:', error);
+                            alert('Error loading audio file. Please try a different file.');
+                        });
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+
+        // Load settings from localStorage
+        function loadSettings() {
+            const enableVibration = localStorage.getItem('enableVibration');
+            const enableSound = localStorage.getItem('enableSound');
+            const enableBackground = localStorage.getItem('enableBackground');
+            const alertSound = localStorage.getItem('alertSound');
+            
+            if (enableVibration !== null) {
+                document.getElementById('enableVibration').checked = enableVibration === 'true';
+            }
+            if (enableSound !== null) {
+                document.getElementById('enableSound').checked = enableSound === 'true';
+            }
+            if (enableBackground !== null) {
+                document.getElementById('enableBackground').checked = enableBackground === 'true';
+            }
+            if (alertSound) {
+                document.getElementById('alertSound').value = alertSound;
+            }
+        }
+
+        // Save settings to localStorage
+        function saveSettings() {
+            localStorage.setItem('enableVibration', document.getElementById('enableVibration').checked);
+            localStorage.setItem('enableSound', document.getElementById('enableSound').checked);
+            localStorage.setItem('enableBackground', document.getElementById('enableBackground').checked);
+            localStorage.setItem('alertSound', document.getElementById('alertSound').value);
+        }
+
+        // Add event listeners for settings
+        document.getElementById('enableVibration').addEventListener('change', saveSettings);
+        document.getElementById('enableSound').addEventListener('change', saveSettings);
+        document.getElementById('enableBackground').addEventListener('change', saveSettings);
+        document.getElementById('alertSound').addEventListener('change', saveSettings);
+
+        // Load settings on startup
+        loadSettings();
+
+        // Handle page visibility changes to maintain timer
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && timer) {
+                // Store the time when page becomes hidden
+                localStorage.setItem('timerStartTime', Date.now() - (totalSeconds - remainingSeconds) * 1000);
+                localStorage.setItem('totalSeconds', totalSeconds);
+            } else if (!document.hidden && timer) {
+                // Recalculate remaining time when page becomes visible
+                const startTime = parseInt(localStorage.getItem('timerStartTime'));
+                const storedTotal = parseInt(localStorage.getItem('totalSeconds'));
+                if (startTime && storedTotal) {
+                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                    remainingSeconds = Math.max(0, storedTotal - elapsed);
+                    if (remainingSeconds <= 0 && !isAlerting) {
+                        clearInterval(timer);
+                        startAlert();
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
