@@ -408,187 +408,186 @@
         let isPaused = false;
         let isAlerting = false;
         let alertInterval = null;
-        let alertAudio = null;
         let wakeLock = null;
         let customAudioBuffer = null;
         let audioContext = null;
         let serviceWorkerRegistered = false;
+        
+        // In-memory settings storage (replacing localStorage)
+        let settings = {
+            enableVibration: true,
+            enableSound: true,
+            enableBackground: true,
+            alertSound: 'beep'
+        };
 
-        // Initialize audio context
+        // Initialize audio context with user gesture
         function initAudioContext() {
             if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    // Resume audio context if suspended
+                    if (audioContext.state === 'suspended') {
+                        audioContext.resume();
+                    }
+                } catch (error) {
+                    console.log('Audio context creation failed:', error);
+                }
             }
             return audioContext;
         }
 
-        // Create different sound types
-        function createSound(type, duration = 0.5) {
+        // Create different sound types with improved audio generation
+        async function createSound(type, duration = 0.8) {
             const ctx = initAudioContext();
-            const oscillator = ctx.createOscillator();
-            const gainNode = ctx.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(ctx.destination);
-            
-            switch(type) {
-                case 'beep':
-                    oscillator.frequency.setValueAtTime(800, ctx.currentTime);
-                    oscillator.type = 'sine';
-                    break;
-                case 'chime':
-                    oscillator.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
-                    oscillator.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
-                    oscillator.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2); // G5
-                    oscillator.type = 'sine';
-                    break;
-                case 'bell':
-                    oscillator.frequency.setValueAtTime(1000, ctx.currentTime);
-                    oscillator.type = 'triangle';
-                    break;
-                case 'alarm':
-                    oscillator.frequency.setValueAtTime(440, ctx.currentTime);
-                    oscillator.frequency.setValueAtTime(880, ctx.currentTime + 0.25);
-                    oscillator.type = 'square';
-                    break;
-                case 'notification':
-                    oscillator.frequency.setValueAtTime(600, ctx.currentTime);
-                    oscillator.frequency.setValueAtTime(800, ctx.currentTime + 0.1);
-                    oscillator.type = 'sine';
-                    break;
+            if (!ctx) return;
+
+            try {
+                // Ensure audio context is running
+                if (ctx.state === 'suspended') {
+                    await ctx.resume();
+                }
+
+                const oscillator = ctx.createOscillator();
+                const gainNode = ctx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(ctx.destination);
+                
+                switch(type) {
+                    case 'beep':
+                        oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+                        oscillator.type = 'sine';
+                        break;
+                    case 'chime':
+                        oscillator.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+                        oscillator.frequency.linearRampToValueAtTime(659.25, ctx.currentTime + 0.2); // E5
+                        oscillator.frequency.linearRampToValueAtTime(783.99, ctx.currentTime + 0.4); // G5
+                        oscillator.type = 'sine';
+                        duration = 1.2;
+                        break;
+                    case 'bell':
+                        oscillator.frequency.setValueAtTime(1000, ctx.currentTime);
+                        oscillator.type = 'triangle';
+                        break;
+                    case 'alarm':
+                        oscillator.frequency.setValueAtTime(440, ctx.currentTime);
+                        oscillator.frequency.setValueAtTime(880, ctx.currentTime + 0.3);
+                        oscillator.frequency.setValueAtTime(440, ctx.currentTime + 0.6);
+                        oscillator.type = 'square';
+                        duration = 1.0;
+                        break;
+                    case 'notification':
+                        oscillator.frequency.setValueAtTime(600, ctx.currentTime);
+                        oscillator.frequency.linearRampToValueAtTime(800, ctx.currentTime + 0.15);
+                        oscillator.frequency.linearRampToValueAtTime(600, ctx.currentTime + 0.3);
+                        oscillator.type = 'sine';
+                        break;
+                }
+                
+                // Improved gain envelope
+                gainNode.gain.setValueAtTime(0, ctx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+                
+                oscillator.start(ctx.currentTime);
+                oscillator.stop(ctx.currentTime + duration);
+            } catch (error) {
+                console.log('Sound creation error:', error);
             }
-            
-            gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-            
-            oscillator.start();
-            oscillator.stop(ctx.currentTime + duration);
         }
 
         // Play custom audio file
-        function playCustomAudio() {
+        async function playCustomAudio() {
             if (customAudioBuffer && audioContext) {
-                const source = audioContext.createBufferSource();
-                source.buffer = customAudioBuffer;
-                source.connect(audioContext.destination);
-                source.start();
+                try {
+                    if (audioContext.state === 'suspended') {
+                        await audioContext.resume();
+                    }
+                    const source = audioContext.createBufferSource();
+                    source.buffer = customAudioBuffer;
+                    source.connect(audioContext.destination);
+                    source.start();
+                } catch (error) {
+                    console.log('Custom audio playback error:', error);
+                }
             }
         }
 
-        function playAlert() {
-            const enableSound = document.getElementById('enableSound').checked;
-            const enableVibration = document.getElementById('enableVibration').checked;
-            const soundType = document.getElementById('alertSound').value;
-            
+        // Improved vibration function
+        function triggerVibration() {
+            if (settings.enableVibration && 'vibrate' in navigator) {
+                try {
+                    // Extended vibration pattern for better notification
+                    navigator.vibrate([500, 200, 500, 200, 500, 200, 500]);
+                } catch (error) {
+                    console.log('Vibration error:', error);
+                }
+            }
+        }
+
+        async function playAlert() {
             try {
-                if (enableSound) {
-                    if (soundType === 'custom' && customAudioBuffer) {
-                        playCustomAudio();
+                if (settings.enableSound) {
+                    if (settings.alertSound === 'custom' && customAudioBuffer) {
+                        await playCustomAudio();
                     } else {
-                        createSound(soundType);
+                        await createSound(settings.alertSound);
                     }
                 }
                 
-                if (enableVibration && navigator.vibrate) {
-                    navigator.vibrate([500, 200, 500, 200, 500]);
-                }
+                // Trigger vibration separately for better reliability
+                setTimeout(() => {
+                    triggerVibration();
+                }, 100);
+                
             } catch (error) {
                 console.log('Alert playback error:', error);
             }
         }
 
-        function testAlert() {
-            playAlert();
+        // Test alert function that ensures audio context is initialized
+        async function testAlert() {
+            // Initialize audio context on user interaction
+            initAudioContext();
+            
+            // Small delay to ensure context is ready
+            setTimeout(async () => {
+                await playAlert();
+            }, 100);
         }
 
         function requestNotificationPermission() {
             if ('Notification' in window && Notification.permission === 'default') {
-                Notification.requestPermission();
+                Notification.requestPermission().then(permission => {
+                    console.log('Notification permission:', permission);
+                });
             }
         }
 
         function showNotification() {
             if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification('🧺 Dry Me!', {
-                    body: 'Time to move your laundry from washer to dryer!',
-                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="0.9em" font-size="90">🧺</text></svg>',
-                    tag: 'laundry-reminder',
-                    requireInteraction: true
-                });
+                try {
+                    new Notification('🧺 Dry Me!', {
+                        body: 'Time to move your laundry from washer to dryer!',
+                        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="0.9em" font-size="90">🧺</text></svg>',
+                        tag: 'laundry-reminder',
+                        requireInteraction: true
+                    });
+                } catch (error) {
+                    console.log('Notification error:', error);
+                }
             }
         }
 
         async function requestWakeLock() {
             try {
-                if ('wakeLock' in navigator && document.getElementById('enableBackground').checked) {
+                if ('wakeLock' in navigator && settings.enableBackground) {
                     wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Wake lock acquired');
                 }
             } catch (error) {
-                console.log('Wake lock not supported');
-            }
-        }
-
-        // Register service worker for background operation
-        async function registerServiceWorker() {
-            if ('serviceWorker' in navigator && document.getElementById('enableBackground').checked) {
-                try {
-                    // Create service worker code as a blob
-                    const swCode = `
-                        self.addEventListener('message', function(event) {
-                            if (event.data.action === 'START_TIMER') {
-                                const duration = event.data.duration;
-                                setTimeout(() => {
-                                    self.registration.showNotification('🧺 Dry Me!', {
-                                        body: 'Time to move your laundry from washer to dryer!',
-                                        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="0.9em" font-size="90">🧺</text></svg>',
-                                        tag: 'laundry-reminder',
-                                        requireInteraction: true,
-                                        actions: [
-                                            { action: 'dismiss', title: 'Got it!' }
-                                        ]
-                                    });
-                                }, duration * 1000);
-                            }
-                        });
-
-                        self.addEventListener('notificationclick', function(event) {
-                            event.notification.close();
-                            if (event.action === 'dismiss') {
-                                // Notification dismissed
-                            }
-                            // Focus the app window
-                            event.waitUntil(
-                                clients.matchAll().then(function(clientList) {
-                                    if (clientList.length > 0) {
-                                        return clientList[0].focus();
-                                    }
-                                    return clients.openWindow('/');
-                                })
-                            );
-                        });
-                    `;
-                    
-                    const blob = new Blob([swCode], { type: 'application/javascript' });
-                    const swUrl = URL.createObjectURL(blob);
-                    
-                    const registration = await navigator.serviceWorker.register(swUrl);
-                    serviceWorkerRegistered = true;
-                    console.log('Service Worker registered successfully');
-                    return registration;
-                } catch (error) {
-                    console.log('Service Worker registration failed:', error);
-                }
-            }
-            return null;
-        }
-
-        // Send timer info to service worker
-        function notifyServiceWorker(duration) {
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller && document.getElementById('enableBackground').checked) {
-                navigator.serviceWorker.controller.postMessage({
-                    action: 'START_TIMER',
-                    duration: duration
-                });
+                console.log('Wake lock not supported:', error);
             }
         }
 
@@ -596,6 +595,7 @@
             if (wakeLock) {
                 wakeLock.release();
                 wakeLock = null;
+                console.log('Wake lock released');
             }
         }
 
@@ -640,7 +640,7 @@
             }
         }
 
-        function startTimer() {
+        async function startTimer() {
             const hours = parseInt(document.getElementById('hours').value) || 0;
             const minutes = parseInt(document.getElementById('minutes').value) || 0;
             
@@ -649,13 +649,13 @@
                 return;
             }
 
+            // Initialize audio context on user interaction
+            initAudioContext();
+
             // Request permissions and setup background operation
             requestNotificationPermission();
-            if (document.getElementById('enableBackground').checked) {
-                requestWakeLock();
-                registerServiceWorker().then(() => {
-                    notifyServiceWorker(totalSeconds);
-                });
+            if (settings.enableBackground) {
+                await requestWakeLock();
             }
 
             totalSeconds = (hours * 3600) + (minutes * 60);
@@ -706,17 +706,20 @@
             updateDisplay();
         }
 
-        function startAlert() {
+        async function startAlert() {
             isAlerting = true;
             document.getElementById('alertOverlay').style.display = 'flex';
             
             // Show notification
             showNotification();
             
-            // Start continuous alert
-            alertInterval = setInterval(() => {
-                playAlert();
-            }, 2000);
+            // Play initial alert
+            await playAlert();
+            
+            // Start continuous alert every 3 seconds
+            alertInterval = setInterval(async () => {
+                await playAlert();
+            }, 3000);
             
             updateDisplay();
         }
@@ -739,85 +742,77 @@
             } else {
                 customSoundInput.style.display = 'none';
             }
+            settings.alertSound = this.value;
         });
 
         document.getElementById('customSound').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = async function(e) {
                     const ctx = initAudioContext();
-                    ctx.decodeAudioData(e.target.result)
-                        .then(buffer => {
-                            customAudioBuffer = buffer;
-                        })
-                        .catch(error => {
+                    if (ctx) {
+                        try {
+                            customAudioBuffer = await ctx.decodeAudioData(e.target.result);
+                            console.log('Custom audio loaded successfully');
+                        } catch (error) {
                             console.error('Error decoding audio file:', error);
                             alert('Error loading audio file. Please try a different file.');
-                        });
+                        }
+                    }
                 };
                 reader.readAsArrayBuffer(file);
             }
         });
 
-        // Load settings from localStorage
-        function loadSettings() {
-            const enableVibration = localStorage.getItem('enableVibration');
-            const enableSound = localStorage.getItem('enableSound');
-            const enableBackground = localStorage.getItem('enableBackground');
-            const alertSound = localStorage.getItem('alertSound');
-            
-            if (enableVibration !== null) {
-                document.getElementById('enableVibration').checked = enableVibration === 'true';
-            }
-            if (enableSound !== null) {
-                document.getElementById('enableSound').checked = enableSound === 'true';
-            }
-            if (enableBackground !== null) {
-                document.getElementById('enableBackground').checked = enableBackground === 'true';
-            }
-            if (alertSound) {
-                document.getElementById('alertSound').value = alertSound;
-            }
-        }
+        // Add event listeners for settings (using in-memory storage)
+        document.getElementById('enableVibration').addEventListener('change', function() {
+            settings.enableVibration = this.checked;
+        });
 
-        // Save settings to localStorage
-        function saveSettings() {
-            localStorage.setItem('enableVibration', document.getElementById('enableVibration').checked);
-            localStorage.setItem('enableSound', document.getElementById('enableSound').checked);
-            localStorage.setItem('enableBackground', document.getElementById('enableBackground').checked);
-            localStorage.setItem('alertSound', document.getElementById('alertSound').value);
-        }
+        document.getElementById('enableSound').addEventListener('change', function() {
+            settings.enableSound = this.checked;
+        });
 
-        // Add event listeners for settings
-        document.getElementById('enableVibration').addEventListener('change', saveSettings);
-        document.getElementById('enableSound').addEventListener('change', saveSettings);
-        document.getElementById('enableBackground').addEventListener('change', saveSettings);
-        document.getElementById('alertSound').addEventListener('change', saveSettings);
+        document.getElementById('enableBackground').addEventListener('change', function() {
+            settings.enableBackground = this.checked;
+        });
 
-        // Load settings on startup
-        loadSettings();
+        document.getElementById('alertSound').addEventListener('change', function() {
+            settings.alertSound = this.value;
+        });
 
         // Handle page visibility changes to maintain timer
+        let timerStartTime = null;
+
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden && timer) {
+            if (document.hidden && timer && !isPaused) {
                 // Store the time when page becomes hidden
-                localStorage.setItem('timerStartTime', Date.now() - (totalSeconds - remainingSeconds) * 1000);
-                localStorage.setItem('totalSeconds', totalSeconds);
-            } else if (!document.hidden && timer) {
+                timerStartTime = Date.now() - (totalSeconds - remainingSeconds) * 1000;
+            } else if (!document.hidden && timer && timerStartTime) {
                 // Recalculate remaining time when page becomes visible
-                const startTime = parseInt(localStorage.getItem('timerStartTime'));
-                const storedTotal = parseInt(localStorage.getItem('totalSeconds'));
-                if (startTime && storedTotal) {
-                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                    remainingSeconds = Math.max(0, storedTotal - elapsed);
-                    if (remainingSeconds <= 0 && !isAlerting) {
-                        clearInterval(timer);
-                        startAlert();
-                    }
+                const elapsed = Math.floor((Date.now() - timerStartTime) / 1000);
+                remainingSeconds = Math.max(0, totalSeconds - elapsed);
+                if (remainingSeconds <= 0 && !isAlerting) {
+                    clearInterval(timer);
+                    startAlert();
                 }
+                timerStartTime = null;
             }
         });
+
+        // Initialize audio context on any user interaction
+        document.addEventListener('click', () => {
+            if (!audioContext) {
+                initAudioContext();
+            }
+        }, { once: true });
+
+        document.addEventListener('touchstart', () => {
+            if (!audioContext) {
+                initAudioContext();
+            }
+        }, { once: true });
     </script>
 </body>
 </html>
